@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Peta Prioritas Perlindungan Karhutla Kalimantan</title>
+
+  <link rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f6f4;
+      color: #20352a;
+    }
+
+    header {
+      padding: 22px;
+      color: white;
+      background: #174c36;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    header p {
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .toolbar {
+      padding: 14px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      background: white;
+    }
+
+    select, button {
+      padding: 10px;
+      border: 1px solid #ccd8cf;
+      border-radius: 7px;
+      background: white;
+      cursor: pointer;
+      color: #20352a;
+      font: 15px Arial, sans-serif;
+      min-height: 42px;
+    }
+
+    button {
+      padding: 10px 14px;
+    }
+
+    .toolbar select {
+      min-width: 220px;
+    }
+
+    .toolbar button:hover {
+      background: #edf6ef;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 350px;
+      gap: 14px;
+      padding: 14px;
+    }
+
+    #map {
+      height: 650px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid #d5dfd8;
+      z-index: 1;
+      background: #e7f0ee;
+    }
+
+    #map.leaflet-container {
+      background: #e7f0ee;
+    }
+
+    .panel {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      line-height: 1.6;
+      box-shadow: 0 2px 10px #163d2910;
+    }
+
+    .panel h2 {
+      font-size: 21px;
+      line-height: 1.3;
+    }
+
+    .panel h3 {
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+
+    .area {
+      font-size: 25px;
+      font-weight: bold;
+      color: #216943;
+    }
+
+    .tag {
+      display: inline-block;
+      background: #e2f1e6;
+      color: #205c39;
+      border-radius: 5px;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    .warning {
+      background: #fff2dc;
+      padding: 10px;
+      border-radius: 7px;
+      font-size: 13px;
+    }
+
+    .legend {
+      background: white;
+      padding: 12px;
+      line-height: 1.9;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px #0002;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+
+    footer {
+      padding: 18px;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    a {
+      color: #17643c;
+    }
+
+    @media (max-width: 800px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      #map {
+        height: 480px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>🌳 Peta Prioritas Perlindungan Karhutla</h1>
+  <p>10 kawasan prioritas di 5 provinsi Kalimantan</p>
+  <p>
+    Identifikasi kawasan konservasi, hutan lindung,
+    dan ekosistem rentan kebakaran.
+  </p>
+</header>
+
+<div class="toolbar">
+  <select id="province">
+    <option value="Semua">Semua Provinsi</option>
+    <option>Kalimantan Barat</option>
+    <option>Kalimantan Tengah</option>
+    <option>Kalimantan Selatan</option>
+    <option>Kalimantan Timur</option>
+    <option>Kalimantan Utara</option>
+  </select>
+
+  <button onclick="showAll()">Tampilkan Semua Marker</button>
+  <button onclick="showIndonesia()">Lihat Seluruh Indonesia</button>
+  <button onclick="focusKalimantan()">Fokus Kalimantan</button>
+  <button onclick="openSipongi()">Buka Data Hotspot SiPongi</button>
+</div>
+
+<div class="layout">
+
+  <div id="map"
+    aria-label="Peta OpenStreetMap Indonesia dengan fokus Kalimantan">
+  </div>
+
+  <aside class="panel" id="info">
+    <span class="tag">PANDUAN PETA</span>
+    <h2>Pilih sebuah kawasan</h2>
+
+    <p>
+      Klik salah satu marker di peta untuk melihat informasi kawasan.
+    </p>
+
+    <h3>Informasi yang tersedia</h3>
+    <ul>
+      <li>Luas kawasan dalam hektare.</li>
+      <li>Ciri utama ekosistem.</li>
+      <li>Ancaman jika terjadi kebakaran.</li>
+      <li>Status perlindungan dan rekomendasi.</li>
+    </ul>
+
+    <div class="warning">
+      Luas yang belum terverifikasi ditampilkan sebagai
+      “Perlu verifikasi”. Marker bukan batas resmi kawasan.
+    </div>
+  </aside>
+
+</div>
+
+<footer>
+  <strong>Sumber data:</strong><br>
+
+  <a
+    href="https://sipongi.gakkum.kehutanan.go.id/sebaran-titik-panas"
+    target="_blank" rel="noopener">
+    SiPongi+ — Data hotspot
+  </a><br>
+
+  <a
+    href="https://ksdae.kehutanan.go.id/kawasan-konservasi/"
+    target="_blank" rel="noopener">
+    Ditjen KSDAE — Kawasan konservasi
+  </a><br>
+
+  <a
+    href="https://www.openstreetmap.org/"
+    target="_blank" rel="noopener">
+    OpenStreetMap — Peta dasar
+  </a>
+
+  <p>
+    Catatan: luas kawasan merupakan luas administratif atau
+    konservasi jika tersedia, bukan luas kebakaran atau luas
+    yang otomatis berstatus rawan. Verifikasi batas dan data
+    terbaru sebelum digunakan sebagai peta resmi.
+  </p>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  // Koordinat marker adalah titik representatif,
+  // bukan batas resmi kawasan.
+
+  const areas = [
+    {
+      name: "Taman Nasional Gunung Palung",
+      province: "Kalimantan Barat",
+      source: "https://ksdae.kehutanan.go.id/kawasan-konservasi/100244031/",
+      image: "images/gunung-palung.jpg",
+      lat: -1.22,
+      lng: 110.10,
+      area: 108044,
+      status: "Taman Nasional",
+      feature: "Hutan hujan tropis dan habitat orangutan.",
+      threat: "Api dapat merusak habitat satwa dan mengganggu regenerasi hutan.",
+      priority: "Lindungi habitat dan cegah sumber api; pemanfaatan mengikuti zonasi resmi.",
+      kind: "protected"
+    },
+    {
+      name: "Taman Nasional Danau Sentarum",
+      province: "Kalimantan Barat",
+      source: "https://ksdae.kehutanan.go.id/kawasan-konservasi/100244030/",
+      image: "images/danau-setarum.webp",
+      lat: 0.85,
+      lng: 112.10,
+      area: 127393.4,
+      status: "Taman Nasional",
+      feature: "Ekosistem danau musiman, rawa, dan hutan lahan basah.",
+      threat: "Kekeringan dapat mengubah kondisi lahan basah dan meningkatkan kerentanan vegetasi.",
+      priority: "Pertahankan fungsi lahan basah dan ikuti aturan zonasi konservasi.",
+      kind: "protected"
+    },
+    {
+      name: "Taman Nasional Sebangau",
+      province: "Kalimantan Tengah",
+      source: "https://ksdae.kehutanan.go.id/kawasan-konservasi/100244034/",
+      image: "images/sebangau.jpg",
+      lat: -2.55,
+      lng: 113.65,
+      area: 537299.72,
+      status: "Taman Nasional",
+      feature: "Hutan rawa gambut dan habitat orangutan.",
+      threat: "Gambut yang mengering dapat terbakar di bawah permukaan dan menghasilkan asap lama.",
+      priority: "Prioritaskan pencegahan api, pemulihan tata air gambut, dan restorasi.",
+      kind: "protected"
+    },
+    {
+      name: "Taman Nasional Tanjung Puting",
+      province: "Kalimantan Tengah",
+      source: "https://ksdae.kehutanan.go.id/kawasan-konservasi/100244035/",
+      image: "images/tanjung-puting.jpg",
+      lat: -2.85,
+      lng: 111.95,
+      area: 412548.24,
+      status: "Taman Nasional",
+      feature: "Hutan rawa gambut, hutan dataran rendah, dan habitat orangutan.",
+      threat: "Kebakaran mengancam satwa, vegetasi, dan simpanan karbon.",
+      priority: "Cegah pembukaan dengan api dan lindungi habitat sesuai zonasi.",
+      kind: "protected"
+    },
+    {
+      name: "Bentang Alam Pegunungan Meratus",
+      province: "Kalimantan Selatan",
+      source: "https://diskominfomc.kalselprov.go.id/2024/06/10/kelola-kawasan-hutan-pemprov-kalsel-lakukan-penataan-batas-riam-kiwa-dan-pegunungan-meratus/",
+      image: "images/meratus.jpg",
+      lat: -2.80,
+      lng: 115.55,
+      area: null,
+      status: "Bentang alam; batas perlindungan perlu diverifikasi",
+      feature: "Hutan pegunungan, keanekaragaman hayati, dan daerah tangkapan air.",
+      threat: "Api dapat merusak vegetasi dan meningkatkan erosi serta limpasan.",
+      priority: "Petakan bagian yang berstatus hutan lindung atau konservasi sebelum menentukan larangan pemanfaatan.",
+      kind: "verify"
+    },
+    {
+      name: "Tahura Sultan Adam",
+      province: "Kalimantan Selatan",
+      source: "https://tahurasultanadam.kalselprov.go.id/",
+      image: "images/sultan-adam.jpeg",
+      lat: -3.50,
+      lng: 114.95,
+      area: 112000,
+      status: "Taman Hutan Raya",
+      feature: "Kawasan hutan, perbukitan, dan perlindungan tata air.",
+      threat: "Kebakaran dapat merusak vegetasi dan mengganggu fungsi daerah tangkapan air.",
+      priority: "Cegah kebakaran; kegiatan pemanfaatan harus mengikuti rencana pengelolaan dan zonasi resmi.",
+      kind: "protected"
+    },
+    {
+      name: "Taman Nasional Kutai",
+      province: "Kalimantan Timur",
+      source: "https://ksdae.kehutanan.go.id/kawasan-konservasi/100244037/",
+      image: "images/taman-nasional-kutai.jpg",
+      lat: 0.40,
+      lng: 117.35,
+      area: 192596.23,
+      status: "Taman Nasional",
+      feature: "Hutan dataran rendah dan keanekaragaman satwa liar.",
+      threat: "Kebakaran dapat merusak habitat dan memecah tutupan hutan.",
+      priority: "Lindungi habitat dan patuhi zonasi taman nasional. Periksa luas penetapan terbaru.",
+      kind: "protected"
+    },
+    {
+      name: "Hutan Lindung Sungai Wain",
+      province: "Kalimantan Timur",
+      source: "https://sungaiwain.org/",
+      image: "images/sungai-wain.jpg",
+      lat: -1.10,
+      lng: 116.83,
+      area: 17766.53,
+      status: "Hutan Lindung",
+      feature: "Hutan yang mendukung perlindungan sumber air di Balikpapan.",
+      threat: "Api dapat merusak vegetasi, mengganggu tata air, dan menyebar ke hutan sekitar.",
+      priority: "Prioritaskan pencegahan api dan perlindungan fungsi tata air.",
+      kind: "protected"
+    },
+    {
+      name: "Taman Nasional Kayan Mentarang",
+      province: "Kalimantan Utara",
+      source: "https://ksdae.kehutanan.go.id/kawasan-konservasi/100244036/",
+      image: "images/kayan-mentarang.jpg",
+      lat: 3.55,
+      lng: 116.35,
+      area: 1271696.56,
+      status: "Taman Nasional",
+      feature: "Hutan pedalaman, pegunungan, dan keanekaragaman hayati.",
+      threat: "Kebakaran dapat merusak habitat luas dan mengganggu konektivitas ekosistem.",
+      priority: "Lindungi habitat dan terapkan ketentuan zonasi taman nasional.",
+      kind: "protected"
+    },
+    {
+      name: "Bentang Alam Sungai Sesayap",
+      province: "Kalimantan Utara",
+      image: "images/sungai-sesayap.jpg",
+      lat: 3.55,
+      lng: 117.20,
+      area: null,
+      source: null,
+      status: "Kandidat kawasan; status dan batas perlu diverifikasi",
+      feature: "Bentang alam sungai dan vegetasi hutan di sekitarnya.",
+      threat: "Kebakaran vegetasi dapat menurunkan kualitas habitat dan memengaruhi daerah aliran sungai.",
+      priority: "Identifikasi lebih dahulu poligon hutan lindung resmi; jangan menganggap seluruh bentang alam berstatus kawasan lindung.",
+      kind: "verify"
+    }
+  ];
+
+  // Membuat peta Leaflet.
+  const map = L.map("map", {
+    zoomControl: true
+  });
+
+  const indonesiaBounds = L.latLngBounds(
+    [[-11.5, 94], [6.5, 141.5]]
+  );
+
+  const kalimantanBounds = L.latLngBounds(
+    [[-4.8, 108], [4.5, 119.5]]
+  );
+
+  map.fitBounds(indonesiaBounds, {
+    padding: [18, 18]
+  });
+
+  // Peta dasar dari server resmi OpenStreetMap.
+
+
+const osmLayer = L.tileLayer(
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  {
+    subdomains: ["a", "b", "c"],
+    maxZoom: 19,
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>'
+  }
+).addTo(map);
+
+
+const hotspotLayer = L.layerGroup().addTo(map);
+
+fetch("./hotspot_kalimantan.json")
+  .then(response => {
+    if (!response.ok) {
+      throw new Error("File data hotspot tidak ditemukan");
+    }
+    return response.json();
+  })
+  .then(data => {
+    data.forEach(hotspot => {
+      L.circleMarker(
+        [hotspot.lat, hotspot.lng],
+        {
+          radius: 4,
+          color: "#B71C1C",
+          weight: 1,
+          fillColor: "#E53935",
+          fillOpacity: 0.8
+        }
+      )
+        .bindPopup(`
+          <strong>Hotspot Terdeteksi</strong><br>
+          Provinsi: ${hotspot.province}<br>
+          Tanggal: ${hotspot.date}<br>
+          Waktu: ${hotspot.time}<br>
+          Satelit: ${hotspot.satellite}<br>
+          Kepercayaan: ${hotspot.confidence}<br>
+          Sumber: SiPongi+
+        `)
+        .addTo(hotspotLayer);
+    });
+
+    console.log("Jumlah hotspot dimuat:", data.length);
+  })
+  .catch(error => {
+    console.error("Gagal memuat data hotspot:", error);
+  });
+
+const kalimantanProvinceNames = [
+  "KALIMANTAN BARAT",
+  "KALIMANTAN TENGAH",
+  "KALIMANTAN SELATAN",
+  "KALIMANTAN TIMUR",
+  "KALIMANTAN UTARA"
+];
+
+const boundaryUrl =
+  "https://gis.bnpb.go.id/server/rest/services/" +
+  "Basemap/batas_administrasi/MapServer/1/query" +
+  "?where=1%3D1&outFields=NAMA_PROP" +
+  "&returnGeometry=true&outSR=4326&f=geojson";
+
+fetch(boundaryUrl)
+  .then(response => {
+    if (!response.ok) {
+      throw new Error("Data batas wilayah gagal dimuat");
+    }
+    return response.json();
+  })
+  .then(data => {
+    const kalimantanLayer = L.geoJSON(data, {
+      filter: feature => {
+  const nama = String(
+    feature.properties.NAMA_PROP || ""
+  ).toUpperCase().trim();
+
+  return kalimantanProvinceNames.includes(nama);
+},
+
+      style: {
+        color: "#176B45",
+        weight: 2,
+        fillColor: "#25965A",
+        fillOpacity: 0.45
+      }
+    }).addTo(map);
+
+    kalimantanLayer.bringToBack();
+  })
+  .catch(error => {
+    console.error("Gagal memuat batas Kalimantan:", error);
+  });
+  setTimeout(function () {
+    map.invalidateSize();
+  }, 300);
+
+  // Pesan jika gambar peta gagal dimuat.
+  let tileNotice = null;
+
+  osmLayer.on("tileerror", function () {
+    if (tileNotice) return;
+
+    tileNotice = document.createElement("div");
+
+    tileNotice.style.cssText =
+      "position:absolute;z-index:1000;bottom:12px;left:12px;" +
+      "max-width:320px;background:#fff2dc;padding:10px 12px;" +
+      "border-radius:8px;font-size:12px;box-shadow:0 2px 8px #0002";
+
+    tileNotice.textContent =
+      "Peta OpenStreetMap gagal dimuat. Pastikan internet aktif " +
+      "dan buka file menggunakan VS Code Live Server, bukan " +
+      "dengan klik dua kali file HTML.";
+
+    document.getElementById("map").appendChild(tileNotice);
+  });
+
+  osmLayer.on("load", function () {
+    if (tileNotice) {
+      tileNotice.remove();
+      tileNotice = null;
+    }
+  });
+
+  // Layer untuk marker kawasan.
+  const markerLayer = L.layerGroup().addTo(map);
+  const markers = [];
+
+
+function colorFor(area) {
+  return "#F4C542";
+}
+function formatArea(value) {
+    if (area.kind === "verify") {
+      return "#D99018";
+    }
+
+    if (area.status === "Hutan Lindung") {
+      return "#2374AB";
+    }
+
+    return "#247A49";
+  }
+
+  function formatArea(value) {
+    if (value == null) {
+      return "Perlu verifikasi dari sumber resmi";
+    }
+
+    return value.toLocaleString("id-ID", {
+      maximumFractionDigits: 2
+    }) + " ha";
+  }
+
+  // Menampilkan informasi saat marker dipilih.
+  function selectArea(area) {
+    document.getElementById("info").innerHTML = `
+      <span class="tag">${area.status}</span>
+
+      
+<h2>${area.name}</h2>
+
+<img
+  src="${area.image}"
+  alt="Foto ${area.name}"
+  style="width:100%; max-height:220px; object-fit:cover; border-radius:10px; margin:10px 0;"
+>
+
+<p>
+  <strong>Provinsi:</strong> ${area.province}
+</p>
+
+     
+<h3>Luas kawasan</h3>
+<div class="area">${formatArea(area.area)}</div>
+
+<p><small>
+  Angka luas menunjukkan luas keseluruhan kawasan,
+  bukan luas wilayah yang terbakar.
+</small></p>
+
+<h3>Sumber data</h3>
+${
+  area.source
+    ? `<p>
+        <a href="${area.source}" target="_blank" rel="noopener">
+          Lihat sumber resmi kawasan ↗
+        </a>
+      </p>`
+    : `<p>Sumber data belum tersedia atau perlu diverifikasi.</p>`
+}
+
+      <h3>Ciri utama</h3>
+      <p>${area.feature}</p>
+
+      <h3>Ancaman kebakaran</h3>
+      <p>${area.threat}</p>
+
+      <h3>Rekomendasi perlindungan</h3>
+      <p>${area.priority}</p>
+
+      <div class="warning">
+        Status perlindungan tidak sama dengan tingkat risiko
+        kebakaran. Periksa hotspot SiPongi dan data lapangan
+        untuk menentukan risiko aktual.
+      </div>
+
+      <p>
+        <a
+          href="https://sipongi.gakkum.kehutanan.go.id/sebaran-titik-panas"
+          target="_blank" rel="noopener">
+          Periksa data hotspot SiPongi ↗
+        </a>
+      </p>
+    `;
+  }
+
+  // Membuat 10 marker.
+  areas.forEach(function (area) {
+    const marker = L.circleMarker(
+      [area.lat, area.lng],
+      {
+        radius: 9,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: colorFor(area),
+        fillOpacity: 0.95
+      }
+    );
+
+    marker.bindTooltip(area.name);
+
+    marker.on("click", function () {
+      selectArea(area);
+    });
+
+    marker.areaData = area;
+    markers.push(marker);
+    markerLayer.addLayer(marker);
+  });
+
+  // Filter provinsi.
+  document.getElementById("province")
+    .addEventListener("change", function () {
+      const selected = this.value;
+
+      markerLayer.clearLayers();
+
+      markers.forEach(function (marker) {
+        if (
+          selected === "Semua" ||
+          marker.areaData.province === selected
+        ) {
+          markerLayer.addLayer(marker);
+        }
+      });
+
+      if (selected !== "Semua") {
+        const visible = markers.filter(function (marker) {
+          return marker.areaData.province === selected;
+        });
+
+        if (visible.length) {
+          map.fitBounds(
+            L.featureGroup(visible).getBounds(),
+            {
+              padding: [30, 30],
+              maxZoom: 8
+            }
+          );
+        }
+      } else {
+        showIndonesia();
+      }
+    });
+
+  // Tampilkan seluruh marker dan fokus ke Kalimantan.
+  function showAll() {
+    document.getElementById("province").value = "Semua";
+
+    markerLayer.clearLayers();
+
+    markers.forEach(function (marker) {
+      markerLayer.addLayer(marker);
+    });
+
+    focusKalimantan();
+  }
+
+  // Tampilkan seluruh Indonesia.
+  function showIndonesia() {
+    document.getElementById("province").value = "Semua";
+
+    markerLayer.clearLayers();
+
+    markers.forEach(function (marker) {
+      markerLayer.addLayer(marker);
+    });
+
+    map.fitBounds(indonesiaBounds, {
+      padding: [18, 18]
+    });
+
+    setTimeout(function () {
+      map.invalidateSize();
+    }, 300);
+  }
+
+  // Fokus ke Kalimantan.
+  function focusKalimantan() {
+    document.getElementById("province").value = "Semua";
+
+    markerLayer.clearLayers();
+
+    markers.forEach(function (marker) {
+      markerLayer.addLayer(marker);
+    });
+
+    map.fitBounds(kalimantanBounds, {
+      padding: [24, 24]
+    });
+  }
+
+  // Membuka data hotspot SiPongi.
+  function openSipongi() {
+    window.open(
+      "https://sipongi.gakkum.kehutanan.go.id/sebaran-titik-panas",
+      "_blank",
+      "noopener"
+    );
+  }
+
+  // Legenda warna.
+  const legend = L.control({
+    position: "bottomleft"
+  });
+
+  legend.onAdd = function () {
+    const div = L.DomUtil.create("div", "legend");
+
+    div.innerHTML = `
+  <strong>Keterangan</strong><br>
+
+  <span class="dot" style="background:#F4C542"></span>
+  Kawasan prioritas<br>
+
+  <span class="dot" style="background:#E53935"></span>
+  Titik hotspot <br>
+`;
+
+    return div;
+  };
+
+  legend.addTo(map);
+</script>
+
+</body>
+</html>
